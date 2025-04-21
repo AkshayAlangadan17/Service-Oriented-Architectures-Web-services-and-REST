@@ -1,101 +1,211 @@
-# 📦 DistributedSystems – Assignment 2
+# Distributed Systems – Assignment 2
+**Service-Oriented Architecture with Python + Flask**
+# Akshay Alangadan, Faisal Khan, Heshan Ryan Raj
+---
 
-A super‑simple two‑service demo (Python + Flask)
+##  Overview
+
+This assignment implements a minimal two-service architecture:
+
+- `auth_service.py`: Handles user authentication and role-based access via token issuance.
+- `transaction.py`: Handles transaction storage and fraud result access, protected by user roles.
+
+Everything is built using **Flask**, and all communication is done via **REST APIs**.
 
 ---
 
-##  What’s inside?
+## Setup Instructions
 
-| File | Purpose |
-| ---- | ------- |
-| **auth_service.py** | Issues & verifies Base64 tokens (in‑memory). |
-| **transaction_service.py** | Admins & Agents add / update transactions and query fraud‑results (SQLite). |
-| **transactions.db** | SQLite file (auto‑created). |
-| **auth_service.log / transaction_service.log** | Per‑service request/response logs. |
+### 1. Requirements
 
----\_service.py**                      | Admins & Agents add / update transactions and query fraud‑results (SQLite). |
-| **transactions.db**                              | SQLite file (auto‑created).                                                 |
-| **auth\_service.log / transaction\_service.log** | Per‑service request/response logs.                                          |
-
----
-
-## 🚀 Run it (two terminals)
+Install dependencies:
 
 ```bash
-# Terminal 1 – Authentication Service
-python auth_service.py    # → http://localhost:5000
-
-# Terminal 2 – Transaction Service
-python transaction_service.py   # → http://localhost:5001
+pip install flask requests
 ```
 
-> Requires only `pip install flask requests` inside your virtual‑env.
+### 2. Folder Contents
+
+- `auth_service.py`: Login + token generation + token verification (in-memory)
+- `transaction.py`: Transaction + fraud result management (with SQLite)
+- `transactions.db`: Auto-generated SQLite DB with `transactions` and `results`
+- `auth_service.log`: Log of all requests to the auth service
+- `transaction_service.log`: Log of all requests to the transaction service
+- `README.md`: This file
 
 ---
 
-## 🔐 Step 1 – Login (get a token)
+##  How to Run
 
-`POST  http://localhost:5000/auth/login`
+### Step 1: Start Both Services in Two Terminals
 
-```json
-{ "username": "admin", "password": "adminpass" }
+> Open two terminal windows (or two tabs in VSCode):
+
+#### Terminal 1 – Run the Auth Service
+
+```bash
+python auth_service.py  # → http://localhost:5000 
 ```
 
-Copy the `token` value from the JSON response.
+Expected output:
+```
+* Serving Flask app 'auth_service'
+ * Debug mode: off
 
-| username  | password      | role          |
-| --------- | ------------- | ------------- |
+```
+
+#### Terminal 2 – Run the Transaction Service
+
+```bash
+python transaction.py # → http://localhost:5001
+```
+```
+
+Expected output:
+```
+ * Serving Flask app 'transaction'
+ * Debug mode: off
+```
+
+---
+
+## How to Use (with Postman or curl)
+
+### Step 2: Login (Get a Token)
+
+**POST** `http://localhost:5000/auth/login`
+
+**Body (JSON):**
+
+```json
+{
+  "username": "admin",
+  "password": "adminpass"
+}
+```
+
+Copy the `token` from the response.
+
+| Username  | Password      | Role          |
+|-----------|---------------|---------------|
 | admin     | adminpass     | Administrator |
 | agent     | agentpass     | Agent         |
 | secretary | secretarypass | Secretary     |
 
 ---
 
-## 💳 Step 2 – Add a transaction
+### Step 3: Add a Transaction
 
-`POST  http://localhost:5001/transactions`
+**POST** `http://localhost:5001/transactions`  
+**Headers**:
+- `Authorization: <your token>`
+- `Content-Type: application/json`
 
-```http
-Header  Authorization: <your‑token>
-Header  Content‑Type:  application/json
-```
+**Body:**
 
 ```json
 {
-  "customer":   "cust1",
-  "status":     "submitted",
-  "vendor_id":  "v123",
-  "amount":      99.9
+  "customer": "cust1",
+  "status": "submitted",
+  "vendor_id": "v123",
+  "amount": 99.9
 }
 ```
 
-Expected response:
+Expected Response:
 
 ```json
 { "success": "Transaction added" }
 ```
 
-\###Update status
+---
 
-```http
-PUT /transactions/1   (same headers)
-Body: { "status": "accepted" }
+### Step 4: Update a Transaction
+
+**PUT** `http://localhost:5001/transactions/1`  
+(Same headers)
+
+**Body:**
+
+```json
+{
+  "status": "accepted"
+}
 ```
 
-\###Check result (example)
+Expected Response:
 
-```http
-GET /results/1   (same Authorization header)
+```json
+{ "success": "Transaction updated" }
 ```
-
-Will reply *Result not found* until an ML result row is inserted.
 
 ---
 
-##  How it works – one paragraph
+### Step 5: Check Fraud Result
 
-*auth\_service.py* keeps a small user table in memory and returns random Base64 tokens. *transaction\_service.py* calls `/auth/verify` on every request and allows only **Administrator** & **Agent** roles. Each request/response is logged. Transaction data and fraud‑results live in a single SQLite DB, so there’s nothing to configure.
+**GET** `http://localhost:5001/results/1`  
+(Same Authorization header)
+
+Expected Response:
+
+```json
+{ "error": "Result not found" }
+```
+
+(Until a result is inserted into the DB)
 
 ---
 
+## Access Control Summary
 
+| Role        | Can Login | Add/Update Transactions | Get Results |
+|-------------|-----------|-------------------------|-------------|
+| Administrator | ✅       | ✅                      | ✅           |
+| Agent         | ✅       | ✅                      | ✅           |
+| Secretary     | ✅       | ❌ (403)                | ❌ (403)     |
+
+---
+
+## How to Use These APIs with Postman
+
+1. **Open Postman** and create a new `POST` request:
+   - URL: `http://localhost:5000/auth/login`
+   - Set **Body** to `raw` and choose **JSON**
+   - Paste:
+     ```json
+     {
+       "username": "admin",
+       "password": "adminpass"
+     }
+     ```
+
+2. **Click Send** and copy the `token` from the response.
+
+3. Use that token in the **Authorization header** for future requests:
+   - Key: `Authorization`
+   - Value: `<your token here>`
+
+4. Set `Content-Type` header to `application/json` for all request bodies.
+
+This will allow you to test login, transaction creation, updating, and result lookup with ease.
+
+---
+
+## Notes 
+
+- No persistent user database is used — everything is in-memory in `auth_service.py`
+- SQLite is auto-created (`transactions.db`)
+- Full request/response logging is enabled in `.log` files
+- Services can be tested using Postman or curl
+- Code is modular and clearly separated by role/responsibility
+
+---
+
+## Tech Stack
+
+- Python 3
+- Flask (micro web framework)
+- SQLite (built-in)
+- Postman / curl for testing
+
+---
